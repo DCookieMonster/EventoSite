@@ -5,6 +5,7 @@ using System.Configuration;
 using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
+using System.Net.Mail;
 using System.Web;
 
 /// <summary>
@@ -18,27 +19,30 @@ public class Model
     {
 
     }
-    
+    #region Register
+
     /// <summary>
     /// register user to the system
     /// </summary>
     /// <param name="firstName"></param>
-    /// <param name="LastName"></param>
+    /// <param name="lastName"></param>
     /// <param name="username"></param>
     /// <param name="email"></param>
     /// <param name="bDate"></param>
     /// <returns></returns>
-    public static bool RegisterUser(string firstName, string lastName, string username, string email, DateTime bDate)
+    public static bool RegisterUser(string firstName, string lastName, string username,string password, string email, DateTime bDate,bool alert)
     {
         bool ans = true;
         // Map SQL param names to C# param names
         SqlParameter sql_firstName = new SqlParameter("FirstName", firstName);
+        SqlParameter sql_password = new SqlParameter("Password", password);
         SqlParameter sql_LastName = new SqlParameter("LastName", lastName);
         SqlParameter sql_username = new SqlParameter("Username", username);
         SqlParameter sql_email = new SqlParameter("Email", email);
         SqlParameter sql_bDate = new SqlParameter("bDate", bDate);
+        SqlParameter sql_alert =new SqlParameter("Alert",alert);
 
-        string query = "INSERT INTO users VALUES (@FirstName, @LastName, @Username, @Email, @bDate)";
+        string query = "INSERT INTO users (firstName,lastName,email,alert,username,password,birthDate) VALUES (@FirstName, @LastName, @Email,@Alert,@Username,@Password,@bDate)";
         SqlCommand cmd = new SqlCommand(query, SqlCon);
 
         // Add Params to the query string
@@ -47,6 +51,8 @@ public class Model
         cmd.Parameters.Add(sql_username);
         cmd.Parameters.Add(sql_email);
         cmd.Parameters.Add(sql_bDate);
+        cmd.Parameters.Add(sql_password);
+        cmd.Parameters.Add(sql_alert);
         try
         {
             SqlCon.Open();
@@ -68,8 +74,87 @@ public class Model
     {
         bool ans = true;
         // Map SQL param names to C# param names
-        SqlParameter sql_tag = new SqlParameter("Tag", tag);
-        string queryTag = "SELECT id FROM tags WHERE tag=@tag";
+        SqlParameter sqlTag = new SqlParameter("Tag", tag);
+        string queryTag = "SELECT id FROM HashTags WHERE tag=@tag";
+        SqlCommand cmd2 = new SqlCommand(queryTag, SqlCon);
+        cmd2.Parameters.Add(sqlTag);
+        int id = -1;
+        try
+        {
+            SqlCon.Open();
+            id = (int)cmd2.ExecuteScalar();
+        }
+        catch
+        {
+            ans = false;
+        }
+        finally { SqlCon.Close(); }
+        if (id != -1)
+            return ans;
+        string query = "INSERT INTO HashTags VALUES (@tag)";
+        SqlCommand cmd = new SqlCommand(query, SqlCon);
+        SqlParameter sqlTag1 = new SqlParameter("Tag", tag);
+
+        // Add Params to the query string
+        cmd.Parameters.Add(sqlTag1);
+        try
+        {
+            SqlCon.Open();
+            cmd.ExecuteNonQuery();
+        }
+        catch
+        {
+            ans = false;
+        }
+        finally { SqlCon.Close(); }
+        return ans;
+    }
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="username"></param>
+    /// <param name="password"></param>
+    /// <param name="email"></param>
+    /// <returns></returns>
+   public static bool RegisterManger(string username,string password,string email)
+    {
+          bool ans = true;
+        // Map SQL param names to C# param names
+        SqlParameter sql_firstName = new SqlParameter("Password", password);
+        SqlParameter sql_username = new SqlParameter("Username", username);
+        SqlParameter sql_email = new SqlParameter("Email", email);
+
+        string query = "INSERT INTO EventManagers (username,password,email) VALUES (@Username, @Password, @Email)";
+        SqlCommand cmd = new SqlCommand(query, SqlCon);
+
+        // Add Params to the query string
+        cmd.Parameters.Add(sql_firstName);
+        cmd.Parameters.Add(sql_username);
+        cmd.Parameters.Add(sql_email);
+        try
+        {
+            SqlCon.Open();
+            cmd.ExecuteNonQuery();
+        }
+        catch
+        {
+            ans = false;
+        }
+        finally { SqlCon.Close(); }
+        return ans;
+    }    
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="artistName"></param>
+    /// <returns></returns>
+    private static int RegisterArtist(string artistName)
+    {
+        bool ans = true;
+        // Map SQL param names to C# param names
+        SqlParameter sql_tag = new SqlParameter("artist", artistName);
+        string queryTag = "SELECT id FROM Artists WHERE artistName=@artist";
         SqlCommand cmd2 = new SqlCommand(queryTag, SqlCon);
         cmd2.Parameters.Add(sql_tag);
         int id = -1;
@@ -84,12 +169,120 @@ public class Model
         }
         finally { SqlCon.Close(); }
         if (id != -1)
-            return ans;
-        string query = "INSERT INTO tags VALUES (@tag)";
+            return id;
+        SqlParameter sql_tag1 = new SqlParameter("artist", artistName);
+
+        string query = "INSERT INTO Artist (artistName) VALUES (@artist)";
         SqlCommand cmd = new SqlCommand(query, SqlCon);
 
         // Add Params to the query string
-        cmd.Parameters.Add(sql_tag);
+        cmd.Parameters.Add(sql_tag1);
+        try
+        {
+            SqlCon.Open();
+            cmd.ExecuteNonQuery();
+            id = (int)cmd2.ExecuteScalar();
+        }
+        catch
+        {
+            ans = false;
+        }
+        finally { SqlCon.Close(); }
+
+
+        return id;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="eventManager"></param>
+    /// <param name="eventName"></param>
+    /// <param name="date"></param>
+    /// <param name="duration"></param>
+    /// <param name="description"></param>
+    /// <param name="price"></param>
+    /// <param name="numOfTickets"></param>
+    /// <param name="artistsList"></param>
+    /// <param name="longitude"></param>
+    /// <param name="latitude"></param>
+    /// <returns></returns>
+    public static bool RegisterEvent(string eventManager, string eventName, DateTime date, double duration, string description,
+        double price, int numOfTickets, List<string> artistsList, double longitude,double latitude)
+    {
+        List<int>artistId=new List<int>();
+        foreach (string artist in artistsList)
+        {
+            artistId.Add(RegisterArtist(artist));
+        }
+        int managerId=GetEventManagerID(eventManager);
+        bool ans = true;
+        // Map SQL param names to C# param names
+        SqlParameter sql_managerID = new SqlParameter("ManagerID", managerId);
+        SqlParameter sql_eventName = new SqlParameter("EventName", eventName);
+        SqlParameter sql_Date = new SqlParameter("Date", date);
+        SqlParameter sql_duration = new SqlParameter("duration", duration);
+        SqlParameter sql_description = new SqlParameter("description", description);
+        SqlParameter sql_price = new SqlParameter("price", price);
+        SqlParameter sql_ticket = new SqlParameter("tickets", numOfTickets);
+        SqlParameter sql_long = new SqlParameter("longitude",longitude);
+        SqlParameter sql_lat =new SqlParameter("latitude",latitude);
+
+        string query = "INSERT INTO Events (EventName,EventManagerId,date,duration,description,price,maxNumOfTickets,longitude,latitude)" +
+                       " VALUES (@EventName, @ManagerID, @Date,@duration,@description,@price,@tickets,@longitude,@latitude)";
+        string idQ = "SELECT id from Events Where EventName=@EventName AND EventManagerId=@ManagerID";
+
+        SqlCommand cmd = new SqlCommand(query, SqlCon);
+        SqlCommand cmd2 = new SqlCommand(idQ, SqlCon);
+
+        // Add Params to the query string
+        cmd.Parameters.Add(sql_Date);
+        cmd.Parameters.Add(sql_description);
+        cmd.Parameters.Add(sql_duration);
+        cmd.Parameters.Add(sql_eventName);
+        cmd.Parameters.Add(sql_managerID);
+        cmd.Parameters.Add(sql_price);
+        cmd.Parameters.Add(sql_ticket);
+        cmd.Parameters.Add(sql_lat);
+        cmd.Parameters.Add(sql_long);
+
+        //cmd2
+        SqlParameter sql_managerID1 = new SqlParameter("ManagerID", managerId);
+        SqlParameter sql_eventName1 = new SqlParameter("EventName", eventName);
+        cmd2.Parameters.Add(sql_eventName1);
+        cmd2.Parameters.Add(sql_managerID1);
+        int id = -1;
+        try
+        {
+            SqlCon.Open();
+            cmd.ExecuteNonQuery();
+            id = (int) cmd2.ExecuteScalar();
+        }
+        catch
+        {
+            ans = false;
+        }
+        finally { SqlCon.Close(); }
+        foreach (int aId in artistId)
+        {
+            RegisterArtistToEvents(aId, id);
+
+        }
+        return ans;
+
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="aId"></param>
+    /// <param name="eId"></param>
+    /// <returns></returns>
+    private static bool RegisterArtistToEvents(int aId, int eId)
+    {
+        string query = "INSERT INTO ArtistsInEvents (eventId,artistId) VALUES (" + eId + "," + aId + ")";
+        SqlCommand cmd = new SqlCommand(query, SqlCon);
+        bool ans = true;
         try
         {
             SqlCon.Open();
@@ -102,18 +295,20 @@ public class Model
         finally { SqlCon.Close(); }
         return ans;
     }
+    #endregion
 
+    #region FK
     public static bool UserTag(string tag, string username)
     {
         bool ans = true;
         // Map SQL param names to C# param names
         SqlParameter sql_tag = new SqlParameter("Tag", tag);
-        string queryTag = "SELECT id FROM tags WHERE tag=@tag";
+        string queryTag = "SELECT id FROM HashTags WHERE tag=@tag";
         SqlCommand cmd2 = new SqlCommand(queryTag, SqlCon);
         cmd2.Parameters.Add(sql_tag);
 
         SqlParameter sql_user = new SqlParameter("User", username);
-        string queryUser = "SELECT id FROM users WHERE username=@User";
+        string queryUser = "SELECT id FROM Users WHERE username=@User";
         SqlCommand cmd3 = new SqlCommand(queryUser, SqlCon);
         cmd3.Parameters.Add(sql_user);
 
@@ -132,11 +327,10 @@ public class Model
         finally { SqlCon.Close(); }
         if (userId == -1 || tagId == -1)
             return false;
-        string query = "INSERT INTO users_tags VALUES (" + tagId + "," + userId + ")";
+        string query = "INSERT INTO HastTagsOfUsers VALUES (" + tagId + "," + userId + ")";
         SqlCommand cmd = new SqlCommand(query, SqlCon);
 
         // Add Params to the query string
-        cmd.Parameters.Add(sql_tag);
         try
         {
             SqlCon.Open();
@@ -149,14 +343,16 @@ public class Model
         finally { SqlCon.Close(); }
         return ans;
     }
+    #endregion
 
+    #region login
     public static bool LoginAdmin(string username, string password)
     {
         bool ans = true;
         // Map SQL param names to C# param names
         SqlParameter sql_username = new SqlParameter("Username", username);
         SqlParameter sql_password = new SqlParameter("Password", password);
-        string queryTag = "SELECT id FROM Musers WHERE username=@Username AND password=@Password";
+        string queryTag = "SELECT id FROM EventManagers WHERE username=@Username AND password=@Password";
         SqlCommand cmd2 = new SqlCommand(queryTag, SqlCon);
         cmd2.Parameters.Add(sql_username);
         cmd2.Parameters.Add(sql_password);
@@ -175,7 +371,14 @@ public class Model
             return false;
         return ans;
     }
-
+    /// <summary>
+    /// check if user exisit in the system and update his longitude and latitude
+    /// </summary>
+    /// <param name="username"></param>
+    /// <param name="password"></param>
+    /// <param name="longitude"></param>
+    /// <param name="latitude"></param>
+    /// <returns>true if he is in the system, else- false</returns>
     public static bool LoginUser(string username, string password, double longitude, double latitude)
     {
         bool ans = true;
@@ -184,7 +387,7 @@ public class Model
         SqlParameter sql_password = new SqlParameter("Password", password);
         SqlParameter sql_lon = new SqlParameter("longitude",longitude);
         SqlParameter sql_lat = new SqlParameter("latitude",latitude);
-        string queryTag = "SELECT id FROM users WHERE username=@Username AND password=@Password";
+        string queryTag = "SELECT id FROM Users WHERE username=@Username AND password=@Password";
         SqlCommand cmd2 = new SqlCommand(queryTag, SqlCon);
         cmd2.Parameters.Add(sql_username);
         cmd2.Parameters.Add(sql_password);
@@ -201,28 +404,9 @@ public class Model
         finally { SqlCon.Close(); }
         if (id == -1)
             return false;
-        string userlog = "SELECT id from usersLog where username=@Username AND password=@Passowrd";
-        SqlCommand cmd3 = new SqlCommand(userlog, SqlCon);
-        cmd3.Parameters.Add(sql_username);
-        cmd3.Parameters.Add(sql_password);
-        int userid =-1;
-        try
-        {
-
-
-        SqlCon.Open();
-          userid  = (int)cmd3.ExecuteScalar();
-        }
-        catch (Exception)
-        {
-            ans = false;
-        }
-        finally { SqlCon.Close(); }
-        string qUser = "INSERT INTO userLog (username,longitude,latitude) VALUE  (@username,@longitude,@latitude)";
-        if (userid >= 0)
-        {
-          qUser = "UPDATE userLog SET longitude=" + longitude + " latitude=" + latitude + " WHERE id=" + userid;
-        }
+     
+         string qUser = "UPDATE Users SET longitude=" + longitude + " latitude=" + latitude + " WHERE id=" + id;
+        
         SqlCommand cmd = new SqlCommand(qUser, SqlCon);
         cmd.Parameters.Add(sql_username);
         cmd.Parameters.Add(sql_lon);
@@ -243,14 +427,22 @@ public class Model
 
         return ans;
     }
+    #endregion
 
+    #region Other
+    /// <summary>
+    /// retrun email list of all the users that are close to the event
+    /// </summary>
+    /// <param name="longitude"></param>
+    /// <param name="latitude"></param>
+    /// <returns>list of emails</returns>
     public static List<string> Location(double longitude, double latitude)
     {
         List<String> columnData = new List<String>();
 
-        using (SqlConnection connection = new SqlConnection("conn_string"))
+        using (SqlConnection connection = new SqlConnection(connGDM))
         {
-            string query = "SELECT * FROM loginUsers";
+            string query = "SELECT * FROM Users";
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 using (SqlDataReader reader = command.ExecuteReader())
@@ -259,7 +451,7 @@ public class Model
                     {
                         double userLongitude = (double) reader["longitude"];
                         double userLatitude = (double) reader["latitude"];
-                        if (Euclidean(userLatitude, userLongitude, latitude, longitude) < 15)
+                        if (reader["longitude"]!=null && Euclidean(userLatitude, userLongitude, latitude, longitude) < 15)
                         {
                             columnData.Add(reader["email"].ToString());
                         }
@@ -270,6 +462,27 @@ public class Model
         return columnData;
     }
 
+    private static int GetEventManagerID(string eventManager)
+    {
+        bool ans = true;
+        // Map SQL param names to C# param names
+        SqlParameter sql_tag = new SqlParameter("username", eventManager);
+        string queryTag = "SELECT id FROM EventManagers WHERE username=@username";
+        SqlCommand cmd2 = new SqlCommand(queryTag, SqlCon);
+        cmd2.Parameters.Add(sql_tag);
+        int id = -1;
+        try
+        {
+            SqlCon.Open();
+            id = (int)cmd2.ExecuteScalar();
+        }
+        catch
+        {
+            ans = false;
+        }
+        finally { SqlCon.Close(); }
+        return id;
+    }
 
 
     /// <summary>
@@ -279,5 +492,5 @@ public class Model
     {
         return Math.Sqrt(Math.Pow(x1 - x2, 2) + Math.Pow(y1-y2, 2));
     }
-
+    #endregion
 }
