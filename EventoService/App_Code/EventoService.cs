@@ -35,7 +35,7 @@ public class EventoService : System.Web.Services.WebService {
         foreach (string tag in tagStrings)
         {
             Model.RegisterTag(tag);
-            Model.userTag(tag, username);
+            Model.UserTag(tag, username);
         }
         return "OK";
     }
