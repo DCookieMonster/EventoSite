@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.ServiceModel.Activation;
+using System.ServiceModel.Web;
 using System.Web;
 using System.Web.Services;
 
@@ -34,13 +35,14 @@ public class EventoService : System.Web.Services.WebService {
         string tags, string alert)
     {
         string[] tagStrings = tags.Split(',');
-        DateTime date = Convert.ToDateTime(bDate);
-        bool a = false;
-        if (alert == "true")
+        DateTime date = DateTime.ParseExact(bDate + " 00:00:52,531", "dd-MM-yyyy HH:mm:ss,fff",
+            System.Globalization.CultureInfo.InvariantCulture);
+        bool a = alert == "true";
+        bool ans=Model.RegisterUser(firstName, lastName, username,password, email, date,a);
+        if (!ans)
         {
-            a = true;
+            return "No";
         }
-        Model.RegisterUser(firstName, lastName, username,password, email, date,a);
         foreach (string tag in tagStrings)
         {
             Model.RegisterTag(tag);
@@ -49,6 +51,14 @@ public class EventoService : System.Web.Services.WebService {
         return "OK";
     }
     [WebMethod]
+    public string LoginUser(string username, string password, string lon, string lat)
+    {
+        return Model.LoginUser(username, password, Convert.ToDouble(lon), Convert.ToDouble(lat)).ToString();
+    }
+    [WebMethod]
+    [WebInvoke(Method = "POST",
+        BodyStyle = WebMessageBodyStyle.Wrapped,
+        ResponseFormat = WebMessageFormat.Json)]
     public string RegisterManager(string username, string password, string email)
     {
         bool ans = Model.RegisterManger(username, password, email);
@@ -65,23 +75,33 @@ public class EventoService : System.Web.Services.WebService {
     }
     [WebMethod]
     public string AddEvent(string eventManager,string name, string date, string hour, string time, string artist,
-        string description, string price, string numOfTickets,string longitude, string latitude)
+        string description, string price, string numOfTickets,string longitude, string latitude,string tags,string address)
     {
-        double priceInt = Convert.ToDouble(price);
         DateTime myDate = DateTime.ParseExact(date + " " + hour + ":52,531", "dd-MM-yyyy HH:mm:ss,fff",
             System.Globalization.CultureInfo.InvariantCulture);
-        //TODO: add event to DB
         List<string> art = artist.Split(',').ToList();
         Model.RegisterEvent(eventManager, name, myDate, Convert.ToDouble(time), description, Convert.ToDouble(price),
-            Convert.ToInt32(numOfTickets), art, Convert.ToDouble(longitude), Convert.ToDouble(latitude));
+            Convert.ToInt32(numOfTickets), art, Convert.ToDouble(longitude), Convert.ToDouble(latitude),address);
 
-        List<string> emailsList = Model.Location(Convert.ToDouble(longitude),Convert.ToDouble(latitude));
-        foreach (string email in emailsList)
+        string[] tagsStrings = tags.Split(',');
+        foreach (string tag in tagsStrings)
         {
-            //TODO: send email to all the users in the same location
-
+            Model.RegisterTag(tag);
+            Model.EventTags(tag, name);
         }
         return "OK";
+    }
+
+    
+    [WebMethod]
+    public string GetEventsNearBy(string longitude, string latitude)
+    {
+        List<Event> events = Model.Location(Convert.ToDouble(longitude), Convert.ToDouble(latitude));
+
+        var oSerializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+        string sJSON = oSerializer.Serialize(events);
+        return sJSON;
+
     }
 }
 
