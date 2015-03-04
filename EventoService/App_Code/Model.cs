@@ -375,7 +375,7 @@ public class Model
         finally { SqlCon.Close(); }
         if (userId == -1 || tagId == -1)
             return false;
-        string query = "INSERT INTO HastTagsOfEvents VALUES (" + userId + "," + tagId + ")";
+        string query = "INSERT INTO HashTagsOfEvents VALUES (" + userId + "," + tagId + ")";
         SqlCommand cmd = new SqlCommand(query, SqlCon);
 
         // Add Params to the query string
@@ -477,7 +477,102 @@ public class Model
     #endregion
 
     #region Other
-    
+
+    public static List<Event> EventsByTag(string tag)
+    {
+        List<Event> events=new List<Event>();
+        SqlParameter sqlTag = new SqlParameter("tag", tag);
+
+        using (SqlConnection connection = new SqlConnection(connGDM))
+        {
+            const string query =
+                "SELECT * FROM Events,HashTags,hashTagsOfEvents Where Events.id=hashTagsOfEvents.eventId AND HashTags.id=hashTagsOfEvents.tagId AND HashTags.hashtag=@tag";
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.Add(sqlTag);
+                connection.Open();
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        
+                            var e = new Event
+                            {
+                                EventName = reader["eventName"].ToString(),
+                                date = (DateTime)reader["date"],
+                                description = reader["description"].ToString(),
+                                duration = reader["duration"].ToString(),
+                                location = reader["address"].ToString(),
+                                price = Convert.ToDouble(reader["price"].ToString()),
+                                tickets = Convert.ToInt32(reader["maxNumOfTickets"].ToString()),
+                                Artists = ArtistInEvent(reader["id"].ToString())
+                            };
+                            events.Add(e);
+                        
+                    }
+                }
+                connection.Close();
+            }
+        }
+
+        return events;
+    }
+
+    private static int GetUserId(string username)
+    {
+        bool ans = true;
+        // Map SQL param names to C# param names
+        SqlParameter sql_tag = new SqlParameter("username", username);
+        string queryTag = "SELECT id FROM Users WHERE username=@username";
+        SqlCommand cmd2 = new SqlCommand(queryTag, SqlCon);
+        cmd2.Parameters.Add(sql_tag);
+        int id = -1;
+        try
+        {
+            SqlCon.Open();
+            id = (int)cmd2.ExecuteScalar();
+        }
+        catch
+        {
+            ans = false;
+        }
+        finally { SqlCon.Close(); }
+        return id;
+    }
+
+    public static List<string> GetUserTags(string username)
+    {
+        int userId = GetUserId(username);
+        List<string> tags=new List<string>();
+        SqlParameter sqlTag = new SqlParameter("ID", userId);
+
+        using (SqlConnection connection = new SqlConnection(connGDM))
+        {
+            const string query =
+                "SELECT * FROM HashTags,hashTagsOfUsers,Users Where Users.id=hashTagsOfUsers.userId AND HashTags.id=hashTagsOfUsers.tagId AND Users.id=@ID";
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.Add(sqlTag);
+                connection.Open();
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+
+                        
+                        tags.Add(reader["hashtag"].ToString());
+
+                    }
+                }
+                connection.Close();
+            }
+        }
+
+        return tags;
+
+    } 
+
+
     public static List<Event> Location(double longitude, double latitude)
     {
         List<Event> columnData = new List<Event>();
@@ -523,7 +618,7 @@ public class Model
 
         using (SqlConnection connection = new SqlConnection(connGDM))
         {
-            string query = "SELECT * FROM ArtistsInEvents Where eventId="+eID;
+            string query = "SELECT * FROM ArtistsInEvents,Artists Where ArtistsInEvents.artistID=Artists.id AND eventId=" + eID;
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 connection.Open();
@@ -531,17 +626,18 @@ public class Model
                 {
                     while (reader.Read())
                     {
-                        SqlConnection tmpSqlConnection=new SqlConnection(connGDM);
-                        string q = "SELECT * FROM Artists Where id=" + reader["artistId"];
-                        SqlCommand cmd2 = new SqlCommand(q, tmpSqlConnection);
+                        //SqlConnection tmpSqlConnection=new SqlConnection(connGDM);
+                        //string q = "SELECT * FROM Artists Where id=" + reader["artistId"];
+                        //SqlCommand cmd2 = new SqlCommand(q, tmpSqlConnection);
                         try
                         {
-                            tmpSqlConnection.Open();
-                            SqlDataReader reader1 = cmd2.ExecuteReader();
-                            while (reader1.Read())
-                            {
-                                columnData.Add(reader1["artistName"].ToString());
-                            }
+                            //tmpSqlConnection.Open();
+                            //SqlDataReader reader1 = cmd2.ExecuteReader();
+                            //while (reader1.Read())
+                            //{
+                            if(!columnData.Contains(reader["artistName"].ToString()))
+                                columnData.Add(reader["artistName"].ToString());
+                         //   }
                         }
                         catch
                         {
