@@ -95,9 +95,9 @@ public class EventoService : System.Web.Services.WebService {
 
     
     [WebMethod]
-    public string GetEventsNearBy(string longitude, string latitude)
+    public string GetEventsNearBy(string longitude, string latitude,string dist)
     {
-        List<Event> events = Model.Location(Convert.ToDouble(longitude), Convert.ToDouble(latitude));
+        List<Event> events = Model.Location(Convert.ToDouble(longitude), Convert.ToDouble(latitude),Convert.ToDouble(dist));
 
         var oSerializer = new System.Web.Script.Serialization.JavaScriptSerializer();
         string sJSON = oSerializer.Serialize(events);

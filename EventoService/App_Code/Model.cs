@@ -573,7 +573,7 @@ public class Model
     } 
 
 
-    public static List<Event> Location(double longitude, double latitude)
+    public static List<Event> Location(double longitude, double latitude,double dist)
     {
         List<Event> columnData = new List<Event>();
 
@@ -589,7 +589,7 @@ public class Model
                     {
                         double eventLongitude = (double) reader["longitude"];
                         double eventLatitude = (double) reader["latitude"];
-                        if (reader["longitude"]!=null && Euclidean(eventLatitude, eventLongitude, latitude, longitude) < 15)
+                        if (reader["longitude"]!=null && distance(eventLatitude, eventLongitude, latitude, longitude,'K') <=dist)
                         {
                             Event e=new Event
                             {
@@ -679,12 +679,34 @@ public class Model
     }
 
 
-    /// <summary>
-    /// Return the distance between 2 points
-    /// </summary>
-    private static double Euclidean(double x1,double y1,double x2,double y2)
-    {
-        return Math.Sqrt(Math.Pow(x1 - x2, 2) + Math.Pow(y1-y2, 2));
+
+private static double distance(double lat1, double lon1, double lat2, double lon2, char unit) {
+  double theta = lon1 - lon2;
+  double dist = Math.Sin(deg2rad(lat1)) * Math.Sin(deg2rad(lat2)) + Math.Cos(deg2rad(lat1)) * Math.Cos(deg2rad(lat2)) * Math.Cos(deg2rad(theta));
+  dist = Math.Acos(dist);
+  dist = rad2deg(dist);
+  dist = dist * 60 * 1.1515;
+  if (unit == 'K') {
+    dist = dist * 1.609344;
+  } else if (unit == 'N') {
+  	dist = dist * 0.8684;
     }
+  return (dist);
+}
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//::  This function converts decimal degrees to radians             :::
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+private static double deg2rad(double deg) {
+  return (deg * Math.PI / 180.0);
+}
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//::  This function converts radians to decimal degrees             :::
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+private static double rad2deg(double rad) {
+  return (rad / Math.PI * 180.0);
+}
+
     #endregion
 }
