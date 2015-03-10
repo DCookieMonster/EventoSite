@@ -495,20 +495,23 @@ public class Model
                 {
                     while (reader.Read())
                     {
-                        
+                        DateTime dateTime = (DateTime) reader["date"];
+                        if (dateTime >= DateTime.Now)
+                        {
                             var e = new Event
                             {
                                 EventName = reader["eventName"].ToString(),
-                                date = (DateTime)reader["date"],
+                                date = (DateTime) reader["date"],
                                 description = reader["description"].ToString(),
                                 duration = reader["duration"].ToString(),
                                 location = reader["address"].ToString(),
                                 price = Convert.ToDouble(reader["price"].ToString()),
-                                tickets = Convert.ToInt32(reader["maxNumOfTickets"].ToString()),
+                                tickets = Convert.ToInt32(reader["availableTickets"].ToString()),
                                 Artists = ArtistInEvent(reader["id"].ToString())
                             };
                             events.Add(e);
-                        
+                        }
+                    
                     }
                 }
                 connection.Close();
@@ -587,22 +590,27 @@ public class Model
                 {
                     while (reader.Read())
                     {
-                        double eventLongitude = (double) reader["longitude"];
-                        double eventLatitude = (double) reader["latitude"];
-                        if (reader["longitude"]!=null && distance(eventLatitude, eventLongitude, latitude, longitude,'K') <=dist)
+                            DateTime dateTime = (DateTime) reader["date"];
+                        if (dateTime >= DateTime.Now)
                         {
-                            Event e=new Event
+                            double eventLongitude = (double) reader["longitude"];
+                            double eventLatitude = (double) reader["latitude"];
+                            if (reader["longitude"] != null &&
+                                distance(eventLatitude, eventLongitude, latitude, longitude, 'K') <= dist)
                             {
-                                EventName = reader["eventName"].ToString(),
-                                date = (DateTime) reader["date"],
-                                description = reader["description"].ToString(),
-                                duration = reader["duration"].ToString(),
-                                location = reader["address"].ToString(),
-                                price = Convert.ToDouble(reader["price"].ToString()),
-                                tickets = Convert.ToInt32(reader["maxNumOfTickets"].ToString()),
-                                Artists = ArtistInEvent(reader["id"].ToString())
-                            };
-                            columnData.Add(e);
+                                Event e = new Event
+                                {
+                                    EventName = reader["eventName"].ToString(),
+                                    date = (DateTime) reader["date"],
+                                    description = reader["description"].ToString(),
+                                    duration = reader["duration"].ToString(),
+                                    location = reader["address"].ToString(),
+                                    price = Convert.ToDouble(reader["price"].ToString()),
+                                    tickets = Convert.ToInt32(reader["maxNumOfTickets"].ToString()),
+                                    Artists = ArtistInEvent(reader["id"].ToString())
+                                };
+                                columnData.Add(e);
+                            }
                         }
                     }
                 }
